@@ -8,9 +8,9 @@ import serial
 import math
 
 class SerialData(object):
-    def __init__(self, port='/dev/ttyUSB0', column=0):
+    def __init__(self, port='/dev/ttyUSB0', columns=(0,)):
         self.unfinished_line = None
-        self.column = column
+        self.columns = columns
         try:
             self.ser = ser = serial.Serial(
                 port=port,
@@ -30,9 +30,10 @@ class SerialData(object):
             self.ser.setTimeout(0)
         
     def next(self):
-        out = []
+        out = [[] for i in self.columns]
+        
         if not self.ser:
-            return [100] #return anything so we can test when Arduino isn't connected
+            return [[100]] #return anything so we can test when Arduino isn't connected
         
         for line in self.ser.readlines():
             if self.unfinished_line:
@@ -42,7 +43,9 @@ class SerialData(object):
                 self.unfinished_line = line
                 return out
             try:
-                out.append(float(line.strip().split()[self.column]))
+                cols = line.strip().split()
+                for column, lst in zip(self.columns, out):
+                    lst.append(float(cols[column]))
             except ValueError:
                 print 'Invalid float: ', line
             except IndexError:

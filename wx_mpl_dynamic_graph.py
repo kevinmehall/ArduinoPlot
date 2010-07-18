@@ -44,6 +44,8 @@ import pylab
 #Data comes from here
 from Arduino_Monitor import SerialData as DataGen
 
+def apply_over_nested_list(fn, lst):
+    return fn([fn(sublist) for sublist in lst])
 
 class BoundControlBox(wx.Panel):
     """ A static box with a couple of radio buttons and a text
@@ -102,7 +104,7 @@ class GraphFrame(wx.Frame):
         wx.Frame.__init__(self, None, -1, self.title)
         
         self.datagen = datagen
-        self.data = self.datagen.next()
+        self.data = []
         self.paused = False
         
         self.create_menu()
@@ -191,11 +193,17 @@ class GraphFrame(wx.Frame):
         # plot the data as a line series, and save the reference 
         # to the plotted line series
         #
-        self.plot_data = self.axes.plot(
-            self.data, 
-            linewidth=1,
-            color=(1, 1, 0),
-            )[0]
+        self.plot_data = []
+        colors = [(1,1,0),(1,0,0),(0,1,0),(0,0,1),(0,1,1)]
+        
+        for color, column in zip(colors, self.datagen.columns):
+            self.data.append([])
+            self.plot_data.append(
+                self.axes.plot(
+                        self.data[-1], 
+                    linewidth=1,
+                    color=color,
+                )[0])
 
     def draw_plot(self):
         """ Redraws the plot
@@ -205,7 +213,7 @@ class GraphFrame(wx.Frame):
         # xmax.
         #
         if self.xmax_control.is_auto():
-            xmax = len(self.data) if len(self.data) > DEFAULT_X_RANGE else DEFAULT_X_RANGE
+            xmax = max(len(self.data[0]), DEFAULT_X_RANGE)
         else:
             xmax = int(self.xmax_control.manual_value())
             
@@ -222,12 +230,13 @@ class GraphFrame(wx.Frame):
         # the whole data set.
         # 
         if self.ymin_control.is_auto():
-            ymin = round(min(self.data), 0) - 1
+            ymin = round(apply_over_nested_list(min, self.data), 0) - 1
         else:
             ymin = int(self.ymin_control.manual_value())
         
         if self.ymax_control.is_auto():
-            ymax = round(max(self.data), 0) + 1
+            ymax = round(apply_over_nested_list(max, self.data), 0) + 1
+            ymax += (ymax - ymin)/10 # so that both lines are visible if they are very far apart
         else:
             ymax = int(self.ymax_control.manual_value())
 
@@ -251,8 +260,9 @@ class GraphFrame(wx.Frame):
         pylab.setp(self.axes.get_xticklabels(), 
             visible=self.cb_xlab.IsChecked())
         
-        self.plot_data.set_xdata(np.arange(len(self.data)))
-        self.plot_data.set_ydata(np.array(self.data))
+        for plot_data, data in zip(self.plot_data, self.data):
+            plot_data.set_xdata(np.arange(len(data)))
+            plot_data.set_ydata(np.array(data))
         
         self.canvas.draw()
     
@@ -289,7 +299,8 @@ class GraphFrame(wx.Frame):
         #
 
         if not self.paused:
-            self.data.extend(self.datagen.next())
+            for olddata, newdata in zip(self.data, self.datagen.next()):
+                olddata.extend(newdata)
         
         self.draw_plot()
     
@@ -311,15 +322,15 @@ class GraphFrame(wx.Frame):
 
 if __name__ == '__main__':
     port = '/dev/ttyUSB0'
-    column = 0
+    columns = [0]
     
     if len(sys.argv) > 1:
         port = sys.argv[1]
     if len(sys.argv) > 2:
-        column = int(sys.argv[2])
+        columns = [int(i) for i in sys.argv[2:]]
     
-    datagen = DataGen(port, column)
-	
+    datagen = DataGen(port, columns)
+    
     app = wx.PySimpleApp()
     app.frame = GraphFrame(datagen)
     app.frame.Show()
