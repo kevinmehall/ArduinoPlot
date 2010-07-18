@@ -27,7 +27,8 @@ import random
 import sys
 import wx
 
-REFRESH_INTERVAL_MS = 90
+REFRESH_INTERVAL_MS = 100
+DEFAULT_X_RANGE = 200
 
 # The recommended way to use wx with mpl is with the WXAgg
 # backend. 
@@ -97,11 +98,11 @@ class GraphFrame(wx.Frame):
     """
     title = 'Demo: dynamic matplotlib graph'
     
-    def __init__(self):
+    def __init__(self, datagen):
         wx.Frame.__init__(self, None, -1, self.title)
         
-        self.datagen = DataGen()
-        self.data = [self.datagen.next()]
+        self.datagen = datagen
+        self.data = self.datagen.next()
         self.paused = False
         
         self.create_menu()
@@ -138,7 +139,6 @@ class GraphFrame(wx.Frame):
         
         self.pause_button = wx.Button(self.panel, -1, "Pause")
         self.Bind(wx.EVT_BUTTON, self.on_pause_button, self.pause_button)
-        self.Bind(wx.EVT_UPDATE_UI, self.on_update_pause_button, self.pause_button)
         
         self.cb_grid = wx.CheckBox(self.panel, -1, 
             "Show Grid",
@@ -205,12 +205,12 @@ class GraphFrame(wx.Frame):
         # xmax.
         #
         if self.xmax_control.is_auto():
-            xmax = len(self.data) if len(self.data) > 50 else 50
+            xmax = len(self.data) if len(self.data) > DEFAULT_X_RANGE else DEFAULT_X_RANGE
         else:
             xmax = int(self.xmax_control.manual_value())
             
         if self.xmin_control.is_auto():            
-            xmin = xmax - 50
+            xmin = xmax - DEFAULT_X_RANGE
         else:
             xmin = int(self.xmin_control.manual_value())
 
@@ -258,8 +258,6 @@ class GraphFrame(wx.Frame):
     
     def on_pause_button(self, event):
         self.paused = not self.paused
-    
-    def on_update_pause_button(self, event):
         label = "Resume" if self.paused else "Pause"
         self.pause_button.SetLabel(label)
     
@@ -289,8 +287,9 @@ class GraphFrame(wx.Frame):
         # if paused do not add data, but still redraw the plot
         # (to respond to scale modifications, grid change, etc.)
         #
+
         if not self.paused:
-            self.data.append(self.datagen.next())
+            self.data.extend(self.datagen.next())
         
         self.draw_plot()
     
@@ -311,8 +310,18 @@ class GraphFrame(wx.Frame):
 
 
 if __name__ == '__main__':
+    port = '/dev/ttyUSB0'
+    column = 0
+    
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+    if len(sys.argv) > 2:
+        column = int(sys.argv[2])
+    
+    datagen = DataGen(port, column)
+	
     app = wx.PySimpleApp()
-    app.frame = GraphFrame()
+    app.frame = GraphFrame(datagen)
     app.frame.Show()
     app.MainLoop()
 
