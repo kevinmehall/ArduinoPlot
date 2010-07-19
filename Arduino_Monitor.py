@@ -28,6 +28,9 @@ class SerialData(object):
             self.ser = None
         else:
             self.ser.setTimeout(0)
+            
+    def sendLine(self, s):
+        self.ser.write(s + '\n');
         
     def next(self):
         out = [[] for i in self.columns]
