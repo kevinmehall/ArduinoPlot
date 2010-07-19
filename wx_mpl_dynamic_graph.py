@@ -27,7 +27,6 @@ import random
 import sys
 import wx
 
-REFRESH_INTERVAL_MS = 100
 DEFAULT_X_RANGE = 200
 
 # The recommended way to use wx with mpl is with the WXAgg
@@ -100,7 +99,7 @@ class GraphFrame(wx.Frame):
     """
     title = 'Demo: dynamic matplotlib graph'
     
-    def __init__(self, datagen):
+    def __init__(self, datagen, poll_interval):
         wx.Frame.__init__(self, None, -1, self.title)
         
         self.datagen = datagen
@@ -114,7 +113,7 @@ class GraphFrame(wx.Frame):
         
         self.redraw_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_redraw_timer, self.redraw_timer)        
-        self.redraw_timer.Start(REFRESH_INTERVAL_MS)
+        self.redraw_timer.Start(poll_interval)
 
     def create_menu(self):
         self.menubar = wx.MenuBar()
@@ -335,18 +334,26 @@ class GraphFrame(wx.Frame):
 
 
 if __name__ == '__main__':
-    port = '/dev/ttyUSB0'
     columns = [0]
     
-    if len(sys.argv) > 1:
-        port = sys.argv[1]
-    if len(sys.argv) > 2:
-        columns = [int(i) for i in sys.argv[2:]]
+    import optparse
+    parser = optparse.OptionParser()
     
-    datagen = DataGen(port, columns)
+    parser.add_option('-d', '--device', type='string', dest='port', default='/dev/ttyUSB0',
+        help="Serial port name")
+            
+    parser.add_option('-t', '--poll-interval', type='int', dest='poll', default=100,
+        help="Poll interval in ms")
+    
+    (options, args) = parser.parse_args()
+    
+    if len(args) > 0:
+        columns = [int(i) for i in args]
+    
+    datagen = DataGen(options.port, columns)
     
     app = wx.PySimpleApp()
-    app.frame = GraphFrame(datagen)
+    app.frame = GraphFrame(datagen, options.poll)
     app.frame.Show()
     app.MainLoop()
 
