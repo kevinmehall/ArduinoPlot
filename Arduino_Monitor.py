@@ -8,7 +8,7 @@ import serial
 import math
 
 class SerialData(object):
-    def __init__(self, port='/dev/ttyUSB0', columns=(0,)):
+    def __init__(self, port='/dev/ttyUSB0', columns=(0,), file=None):
         self.unfinished_line = None
         self.columns = columns
         try:
@@ -28,6 +28,10 @@ class SerialData(object):
             self.ser = None
         else:
             self.ser.setTimeout(0)
+        if file:
+        	self.file = open(file, 'at')
+        else:
+        	self.file = None
             
     def sendLine(self, s):
         self.ser.write(s + '\n');
@@ -45,6 +49,8 @@ class SerialData(object):
             if not line.endswith('\n'):
                 self.unfinished_line = line
                 return out
+            if self.file:
+            	self.file.write(line)
             try:
                 cols = line.strip().split()
                 for column, lst in zip(self.columns, out):

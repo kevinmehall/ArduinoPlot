@@ -344,13 +344,16 @@ if __name__ == '__main__':
             
     parser.add_option('-t', '--poll-interval', type='int', dest='poll', default=100,
         help="Poll interval in ms")
+        
+    parser.add_option('-s', '--save', type='string', dest='file', default='',
+        help="Save raw data to file")
     
     (options, args) = parser.parse_args()
     
     if len(args) > 0:
         columns = [int(i) for i in args]
     
-    datagen = DataGen(options.port, columns)
+    datagen = DataGen(options.port, columns, options.file)
     
     app = wx.PySimpleApp()
     app.frame = GraphFrame(datagen, options.poll)
