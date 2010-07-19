@@ -44,8 +44,8 @@ import pylab
 #Data comes from here
 from Arduino_Monitor import SerialData as DataGen
 
-def apply_over_nested_list(fn, lst):
-    return fn([fn(sublist) for sublist in lst])
+def apply_over_nested_list(fn, lst, min_x=0):
+    return fn([fn(sublist[min_x:]) for sublist in lst])
 
 class BoundControlBox(wx.Panel):
     """ A static box with a couple of radio buttons and a text
@@ -106,6 +106,7 @@ class GraphFrame(wx.Frame):
         self.datagen = datagen
         self.data = []
         self.paused = False
+        self.autoscale_min_x = 0
         
         self.create_menu()
         self.create_status_bar()
@@ -157,6 +158,8 @@ class GraphFrame(wx.Frame):
         self.hbox1 = wx.BoxSizer(wx.HORIZONTAL)
         self.hbox1.Add(self.pause_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(20)
+        self.hbox1.Add(self.reset_button, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        self.hbox1.AddSpacer(20)
         self.hbox1.Add(self.cb_grid, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
         self.hbox1.AddSpacer(10)
         self.hbox1.Add(self.cb_xlab, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
@@ -189,10 +192,6 @@ class GraphFrame(wx.Frame):
         
         pylab.setp(self.axes.get_xticklabels(), fontsize=8)
         pylab.setp(self.axes.get_yticklabels(), fontsize=8)
-
-        # plot the data as a line series, and save the reference 
-        # to the plotted line series
-        #
         self.plot_data = []
         colors = [(1,1,0),(1,0,0),(0,1,0),(0,0,1),(0,1,1)]
         
@@ -230,12 +229,12 @@ class GraphFrame(wx.Frame):
         # the whole data set.
         # 
         if self.ymin_control.is_auto():
-            ymin = round(apply_over_nested_list(min, self.data), 0) - 1
+            ymin = round(apply_over_nested_list(min, self.data, self.autoscale_min_x), 0) - 1
         else:
             ymin = int(self.ymin_control.manual_value())
         
         if self.ymax_control.is_auto():
-            ymax = round(apply_over_nested_list(max, self.data), 0) + 1
+            ymax = round(apply_over_nested_list(max, self.data, self.autoscale_min_x), 0) + 1
             ymax += (ymax - ymin)/10 # so that both lines are visible if they are very far apart
         else:
             ymax = int(self.ymax_control.manual_value())
@@ -270,6 +269,9 @@ class GraphFrame(wx.Frame):
         self.paused = not self.paused
         label = "Resume" if self.paused else "Pause"
         self.pause_button.SetLabel(label)
+        
+    def on_reset(self, event):
+        self.autoscale_min_x = len(self.data[0])
     
     def on_cb_grid(self, event):
         self.draw_plot()
